@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../data/mock_reservation.dart';
+
 import '../../utils/route_names.dart';
 
 class ReservationHistoryScreen extends StatelessWidget {
@@ -184,15 +186,15 @@ class ReservationHistoryScreen extends StatelessWidget {
 
             status: '예약 확정',
 
-            date: '2026년 8월 24일',
+            date: upcomingReservation.date,
 
-            time: '오후 3:00',
+            time: upcomingReservation.time,
 
-            store: 'MIRA 컨셉스토어',
+            store: upcomingReservation.store,
 
             itemCount: 2,
 
-            reservationCode: 'MIRA-20260824-1500-001',
+            reservationCode: upcomingReservation.code,
 
             onCancel: () {
 
