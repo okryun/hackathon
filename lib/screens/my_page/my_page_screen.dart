@@ -10,6 +10,10 @@ import '../../models/product.dart';
 
 import '../../services/ar_session_provider.dart';
 
+import '../../theme/app_colors.dart';
+
+import '../../theme/app_typography.dart';
+
 import '../../utils/formatters.dart';
 
 import '../../utils/route_names.dart';
@@ -72,10 +76,10 @@ class MyPageScreen extends StatelessWidget {
 
     final reportProduct = mockProducts.isNotEmpty ? mockProducts.first : null;
 
-    // AR로 착용해본 상품 (최근 순, 최대 6개)
+    // AR로 착용해본 상품 (최근 순, 최대 5개)
     final arSession = context.watch<ArSessionProvider>();
     final arTriedProducts = arSession.recentTriedProductIds
-        .take(6)
+        .take(5)
         .map((id) => findMockProductById(id))
         .whereType<Product>()
         .toList();
@@ -267,114 +271,26 @@ class MyPageScreen extends StatelessWidget {
             if (arTriedProducts.isNotEmpty) ...[
               const SizedBox(height: 30),
               const Text(
-                'AR로 체험해본 상품',
+                'AR 체험 기록',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                height: 168,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: arTriedProducts.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final product = arTriedProducts[index];
-                    return GestureDetector(
-                      onTap: () {
-                        context.push(
-                          RouteNames.productDetailPath(product.id),
-                        );
-                      },
-                      child: SizedBox(
-                        width: 118,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Stack(
-                              children: [
-                                AspectRatio(
-                                  aspectRatio: 1,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      color: const Color(0xFFF1EEE8),
-                                      child: Image.network(
-                                        product.image,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) {
-                                          return const Center(
-                                            child: Icon(
-                                              Icons.shopping_bag_outlined,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 6,
-                                  bottom: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.85),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.view_in_ar,
-                                          size: 10,
-                                          color: Colors.white,
-                                        ),
-                                        SizedBox(width: 3),
-                                        Text(
-                                          'AR',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              product.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              Formatters.price(product.price),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF777777),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              for (int i = 0; i < arTriedProducts.length; i++) ...[
+                _ArHistoryTile(
+                  product: arTriedProducts[i],
+                  usageCount: arSession.usageCount(arTriedProducts[i].id),
+                  totalDuration: arSession.totalDuration(arTriedProducts[i].id),
+                  onTap: () {
+                    context.push(
+                      RouteNames.productDetailPath(arTriedProducts[i].id),
                     );
                   },
                 ),
-              ),
+                if (i != arTriedProducts.length - 1) const SizedBox(height: 12),
+              ],
             ],
             const SizedBox(height: 30),
             const Text(
@@ -502,6 +418,98 @@ class MyPageScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// AR 체험 기록 리스트 카드.
+/// ar_tab_screen.dart의 _ArHistoryTile과 동일한 디자인을 My 페이지에서도 사용.
+class _ArHistoryTile extends StatelessWidget {
+  final Product product;
+  final int usageCount;
+  final Duration totalDuration;
+  final VoidCallback onTap;
+
+  const _ArHistoryTile({
+    required this.product,
+    required this.usageCount,
+    required this.totalDuration,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE7E3DC)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                product.image,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 64,
+                  height: 64,
+                  color: const Color(0xFFF1EEE8),
+                  child: const Icon(
+                    Icons.image_outlined,
+                    color: Color(0xFFAFAFAF),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(product.brand, style: AppTypography.label),
+                  const SizedBox(height: 2),
+                  Text(
+                    product.name,
+                    style: AppTypography.body,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    Formatters.price(product.price),
+                    style: AppTypography.price,
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'AR $usageCount회',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  Formatters.duration(totalDuration),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
