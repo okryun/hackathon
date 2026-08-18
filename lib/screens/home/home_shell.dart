@@ -6,7 +6,7 @@ import '../../utils/route_names.dart';
 
 import '../../widgets/bottom_nav_bar.dart';
 
-import '../ar/ar_tab_screen.dart';
+import '../checkin/store_checkin_screen.dart';
 
 import '../explore/explore_screen.dart';
 
@@ -18,17 +18,20 @@ import 'home_screen.dart';
 
 /// Bottom Navigation을 갖는 앱의 최상위 셸.
 
-/// Home / Explore / AR / Saved / My 5개 탭을 IndexedStack으로 관리한다.
+/// Home / Explore / 체크인 / Saved / My 5개 탭을 IndexedStack으로 관리한다.
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  /// 셸이 처음 열릴 때 보여줄 탭 인덱스 (기본값: 0 = Home).
+  final int initialIndex;
+
+  const HomeShell({super.key, this.initialIndex = 0});
 
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialIndex;
 
   String? _exploreInitialCategory;
 
@@ -68,8 +71,9 @@ class _HomeShellState extends State<HomeShell> {
         initialCategory: _exploreInitialCategory,
       ),
 
-      ArTabScreen(
-        onProductTap: _goToProductDetail,
+      // 매장 체크인 (기존 AR 탭 자리)
+
+      StoreCheckinScreen(
         onExploreTap: () => _goToExploreTab(),
       ),
 
