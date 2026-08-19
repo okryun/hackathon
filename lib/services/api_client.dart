@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,9 +13,11 @@ class ApiClient {
   ApiClient._internal();
   static final ApiClient instance = ApiClient._internal();
 
-  /// 로컬에서 `npm run dev`로 실행 중인 백엔드 서버 주소.
-  /// 서버를 다른 곳(클라우드 등)에 배포하면 이 값만 바꾸면 된다.
-  static const String baseUrl = 'http://localhost:4000/api/v1';
+  /// `flutter run`(디버그)일 때는 로컬 백엔드(localhost)를,
+  /// `flutter build web`(배포용 릴리즈 빌드)일 때는 실제 배포된 백엔드 주소를 사용한다.
+  static const String _prodBaseUrl = 'https://mira-ar-fashion.onrender.com/api/v1';
+  static const String _devBaseUrl = 'http://localhost:4000/api/v1';
+  static String get baseUrl => kReleaseMode ? _prodBaseUrl : _devBaseUrl;
 
   static const _tokenKey = 'auth_token';
 
