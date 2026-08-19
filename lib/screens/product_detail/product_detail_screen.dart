@@ -553,21 +553,30 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
     return 'MCM$y$m$d-$hh$mm';
   }
 
-  void _buyNow() {
-    final orderNumber = _buildOrderNumber();
-    final productSummary =
-        '${widget.product.name} ($_color)${_quantity > 1 ? ' 외 ${_quantity - 1}개' : ''}';
-    final total = _totalPrice;
-    final orderedAt = DateTime.now();
+  Future<void> _buyNow() async {
+    // 백엔드(/api/v1/orders)에 실제로 주문을 생성한다. (비회원이면 로컬에서만 처리됨)
+    final order = await CartStore.instance.checkout(
+      product: widget.product,
+      color: _color,
+      quantity: _quantity,
+    );
+
+    if (!mounted) return;
+
+    final orderNumber = order['orderNumber'] as String;
+    final productSummary = order['productSummary'] as String;
+    final total = order['totalPrice'] as int;
 
     OrderHistoryStore.instance.add(
       OrderRecord(
         orderNumber: orderNumber,
         productSummary: productSummary,
         totalPrice: total,
-        orderedAt: orderedAt,
+        orderedAt: DateTime.now(),
       ),
     );
+    // 로그인 상태라면 서버에 실제로 저장된 주문 내역으로 다시 한번 갱신한다.
+    OrderHistoryStore.instance.loadFromServer();
 
     Navigator.of(context).pop();
 

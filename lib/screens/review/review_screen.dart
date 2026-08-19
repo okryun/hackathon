@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock_reviews.dart';
 import '../../models/product.dart';
 import '../../models/review.dart';
+import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 
@@ -11,11 +11,29 @@ class ReviewScreen extends StatelessWidget {
 
   const ReviewScreen({super.key, required this.product});
 
+  /// 백엔드(/api/v1/products/:id/reviews)에서 실제 리뷰 목록을 가져온다.
+  Future<List<Review>> _fetchReviews() async {
+    try {
+      final data = await ApiClient.instance.get('/products/${product.id}/reviews') as List;
+      return data.map((e) {
+        final map = e as Map<String, dynamic>;
+        return Review(
+          id: map['id'] as String,
+          authorName: map['authorName'] as String,
+          rating: map['rating'] as int,
+          date: DateTime.parse(map['createdAt'] as String),
+          comment: map['comment'] as String,
+          color: map['color'] as String?,
+          helpfulCount: map['helpfulCount'] as int,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final reviews = generateMockReviews(product);
-    final distribution = _computeDistribution(reviews);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -36,36 +54,48 @@ class ReviewScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: reviews.isEmpty
-          ? Center(
-              child: Text(
-                '아직 등록된 리뷰가 없어요.',
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              children: [
-                Text(
-                  product.name,
-                  style: AppTypography.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 20),
-                _RatingSummary(
-                  product: product,
-                  distribution: distribution,
-                  totalCount: reviews.length,
-                ),
-                const SizedBox(height: 28),
-                const Divider(),
-                const SizedBox(height: 8),
-                for (final review in reviews) _ReviewCard(review: review),
-              ],
-            ),
+      body: FutureBuilder<List<Review>>(
+        future: _fetchReviews(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final reviews = snapshot.data ?? [];
+          final distribution = _computeDistribution(reviews);
+
+          return reviews.isEmpty
+              ? Center(
+                  child: Text(
+                    '아직 등록된 리뷰가 없어요.',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  children: [
+                    Text(
+                      product.name,
+                      style: AppTypography.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 20),
+                    _RatingSummary(
+                      product: product,
+                      distribution: distribution,
+                      totalCount: reviews.length,
+                    ),
+                    const SizedBox(height: 28),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    for (final review in reviews) _ReviewCard(review: review),
+                  ],
+                );
+        },
+      ),
     );
   }
 

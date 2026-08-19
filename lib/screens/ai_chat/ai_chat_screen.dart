@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
+import '../../services/api_client.dart';
 import '../../services/product_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
@@ -73,7 +72,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     });
   }
 
-  void _handleSend([String? presetText]) {
+  Future<void> _handleSend([String? presetText]) async {
     final text = (presetText ?? _controller.text).trim();
     if (text.isEmpty) return;
 
@@ -84,20 +83,25 @@ class _AiChatScreenState extends State<AiChatScreen> {
     _controller.clear();
     _scrollToBottom();
 
-    // TODO: 실제 AI API 연동 지점
-    Timer(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add(
-          _ChatMessage(
-            text: _mockReply(text),
-            isUser: false,
-          ),
-        );
-      });
-      _scrollToBottom();
+    // 백엔드(/api/v1/ai-chat)에 실제로 질문을 보낸다.
+    // (서버에 AI 키가 설정 안 돼있으면 서버가 알아서 대체 응답을 준다.)
+    String reply;
+    try {
+      final data = await ApiClient.instance.post('/ai-chat', body: {
+        'productId': widget.productId,
+        'message': text,
+      }) as Map<String, dynamic>;
+      reply = data['reply'] as String;
+    } catch (_) {
+      reply = _mockReply(text);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isTyping = false;
+      _messages.add(_ChatMessage(text: reply, isUser: false));
     });
+    _scrollToBottom();
   }
 
   String _mockReply(String question) {

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/mock_products.dart';
 
 import '../../models/product.dart';
+import '../../services/api_client.dart';
 
 class FittingReservationScreen extends StatefulWidget {
   const FittingReservationScreen({super.key});
@@ -305,7 +306,9 @@ class _FittingReservationScreenState extends State<FittingReservationScreen> {
     );
   }
 
-  void _reserve() {
+  bool _submitting = false;
+
+  Future<void> _reserve() async {
     if (selectedProducts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -317,6 +320,26 @@ class _FittingReservationScreenState extends State<FittingReservationScreen> {
 
       return;
     }
+
+    if (_submitting) return;
+    setState(() => _submitting = true);
+
+    // 백엔드(/api/v1/reservations)에 실제로 예약을 생성한다.
+    // (비회원이면 서버에 저장되진 않지만, 화면은 기존처럼 완료 안내를 보여준다.)
+    try {
+      await ApiClient.instance.post('/reservations', body: {
+        'storeId': selectedStore,
+        'storeName': selectedStore,
+        'date': _formatDate(selectedDate),
+        'time': selectedTime,
+        'itemCount': selectedProducts.length,
+      });
+    } catch (_) {
+      // 비회원이거나 서버 오류여도 기존 Mock 동작처럼 완료 안내는 그대로 보여준다.
+    }
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
 
     showDialog(
       context: context,
@@ -839,7 +862,8 @@ class _FittingReservationScreenState extends State<FittingReservationScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: selectedProducts.isEmpty ? null : _reserve,
+                    onPressed:
+                        (selectedProducts.isEmpty || _submitting) ? null : _reserve,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

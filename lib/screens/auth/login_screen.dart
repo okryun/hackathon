@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../services/auth_provider.dart';
+import '../../services/cart_store.dart';
+import '../../services/order_history_store.dart';
+import '../../services/recently_viewed_provider.dart';
+import '../../services/wishlist_provider.dart';
 import '../../utils/route_names.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool obscurePassword = true;
 
+  bool _submitting = false;
+
   @override
   void dispose() {
     emailController.dispose();
@@ -27,12 +35,32 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    // 현재는 Mock Login
+  Future<void> _login() async {
+    // 백엔드 서버(/api/v1/auth/login)에 실제로 로그인을 요청한다.
+    if (_submitting) return;
+    setState(() => _submitting = true);
 
-    // 로그인 성공 → AI 퍼스널 프로필 생성
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(
+      email: emailController.text.trim(),
+      password: passwordController.text,
+    );
 
-    context.go(RouteNames.personalProfile);
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (success) {
+      // 로그인 성공 → 서버에 저장된 찜/최근 본 상품/장바구니/주문내역 동기화 후 AI 퍼스널 프로필 생성으로 이동
+      context.read<WishlistProvider>().loadFromServer();
+      context.read<RecentlyViewedProvider>().loadFromServer();
+      CartStore.instance.loadFromServer();
+      OrderHistoryStore.instance.loadFromServer();
+      context.go(RouteNames.personalProfile);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? '로그인에 실패했습니다.')),
+      );
+    }
   }
 
   void _continueAsGuest() {
@@ -158,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _login,
+                  onPressed: _submitting ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
@@ -167,13 +195,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    '로그인',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          '로그인',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 18),

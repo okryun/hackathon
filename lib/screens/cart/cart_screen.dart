@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../models/order_record.dart';
 import '../../services/cart_store.dart';
+import '../../services/order_history_store.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/formatters.dart';
@@ -308,12 +310,25 @@ class _CartSummary extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  final orderNumber = _buildOrderNumber();
-                  final productSummary = _buildProductSummary();
-                  final total = CartStore.instance.totalPrice;
+                onPressed: () async {
+                  // 백엔드(/api/v1/orders)에 실제로 장바구니 → 주문 전환을 요청한다.
+                  // (비회원이면 로컬에서만 처리됨)
+                  final order = await CartStore.instance.checkout();
+                  if (!context.mounted) return;
 
-                  CartStore.instance.clear();
+                  final orderNumber = order['orderNumber'] as String;
+                  final productSummary = order['productSummary'] as String;
+                  final total = order['totalPrice'] as int;
+
+                  OrderHistoryStore.instance.add(
+                    OrderRecord(
+                      orderNumber: orderNumber,
+                      productSummary: productSummary,
+                      totalPrice: total,
+                      orderedAt: DateTime.now(),
+                    ),
+                  );
+                  OrderHistoryStore.instance.loadFromServer();
 
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(

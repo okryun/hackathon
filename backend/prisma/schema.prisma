@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String               @id @default(uuid())
+  email          String               @unique
+  password       String
+  name           String
+  createdAt      DateTime             @default(now())
+
+  cartItems      CartItem[]
+  orders         Order[]
+  wishlist       WishlistItem[]
+  recentlyViewed RecentlyViewedItem[]
+  reviews        Review[]
+  arSessions     ArSession[]
+  reservations   Reservation[]
+  checkins       StoreCheckin[]
+}
+
+model Product {
+  id             String               @id
+  brand          String
+  name           String
+  price          Int
+  image          String
+  category       String
+  colors         String // JSON-encoded string[] (예: ["Black","Camel"])
+  description    String
+  stock          Int
+  storeLocation  String
+  arAvailable    Boolean
+  rating         Float                @default(4.5)
+  reviewCount    Int                  @default(0)
+
+  reviews        Review[]
+  cartItems      CartItem[]
+  wishlist       WishlistItem[]
+  recentlyViewed RecentlyViewedItem[]
+  arSessions     ArSession[]
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  authorName   String
+  rating       Int
+  comment      String
+  color        String?
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model CartItem {
+  id            String  @id @default(uuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id])
+  productId     String
+  product       Product @relation(fields: [productId], references: [id])
+  selectedColor String?
+  quantity      Int     @default(1)
+
+  @@unique([userId, productId, selectedColor])
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  orderNumber    String      @unique
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  productSummary String
+  totalPrice     Int
+  orderedAt      DateTime    @default(now())
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id            String  @id @default(uuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id])
+  productId     String
+  productName   String
+  selectedColor String?
+  quantity      Int
+  price         Int
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model RecentlyViewedItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  viewedAt  DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model ArSession {
+  id        String    @id @default(uuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product   @relation(fields: [productId], references: [id])
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+}
+
+model StoreCheckin {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  storeId      String
+  storeName    String
+  checkedInAt  DateTime  @default(now())
+  checkedOutAt DateTime?
+}
+
+model Reservation {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  code      String   @unique
+  storeId   String
+  storeName String
+  date      String
+  time      String
+  itemCount Int      @default(0) // 피팅 예약한 상품 개수 (몇 개인지만 기록, 상세 목록은 저장하지 않음)
+  status    String   @default("upcoming") // upcoming | completed | cancelled
+  createdAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String?
+  productId String?
+  role      String // user | assistant
+  content   String
+  createdAt DateTime @default(now())
+}

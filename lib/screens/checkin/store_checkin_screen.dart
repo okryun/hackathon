@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../data/mock_reservation.dart';
+import '../../services/api_client.dart';
 
 import '../../services/current_store_store.dart';
 
@@ -42,7 +42,7 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
     super.dispose();
   }
 
-  Future<void> _runCheckinSequence() async {
+  Future<void> _runCheckinSequence({String? storeId, String? storeName}) async {
     if (_state != _CheckinState.idle) return;
 
     setState(() => _state = _CheckinState.scanning);
@@ -51,23 +51,21 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
     await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
 
-    // 2. 매장 ID 인식 (mock)
-    const storeId = _mockStoreId;
-    const storeName = _mockStoreName;
+    // 2. 매장 ID 인식 (QR로 들어온 경우 실제 예약의 매장, 아니면 mock)
+    final resolvedStoreId = storeId ?? _mockStoreId;
+    final resolvedStoreName = storeName ?? _mockStoreName;
 
-    // 3. 백엔드 기록은 생략 (백엔드 없음)
-
-    // 4. 앱에 현재 매장 저장
+    // 3. 앱에 현재 매장 저장 (로그인 상태면 서버에도 기록됨)
     CurrentStoreStore.instance.checkIn(
-      storeId: storeId,
-      storeName: storeName,
+      storeId: resolvedStoreId,
+      storeName: resolvedStoreName,
     );
 
     setState(() => _state = _CheckinState.idle);
 
     // 5. 완료 팝업 표시
     if (!mounted) return;
-    _showCheckinCompleteDialog(storeName);
+    _showCheckinCompleteDialog(resolvedStoreName);
   }
 
   void _cancel() {
@@ -165,7 +163,34 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
     );
   }
 
+  /// 백엔드(/api/v1/reservations/upcoming)에서 가장 최근의 예정된 예약을 가져온다.
+  /// 비회원이거나 예약이 없거나 서버 오류면 null을 반환한다.
+  Future<Map<String, dynamic>?> _fetchUpcomingReservation() async {
+    try {
+      final data = await ApiClient.instance.get('/reservations/upcoming');
+      if (data == null) return null;
+      return data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _checkinWithQr() async {
+    final reservation = await _fetchUpcomingReservation();
+    if (!mounted) return;
+
+    if (reservation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('예정된 예약이 없어요. 먼저 피팅 예약을 해주세요.')),
+      );
+      return;
+    }
+
+    final code = reservation['code'] as String;
+    final date = reservation['date'] as String;
+    final time = reservation['time'] as String;
+    final storeName = reservation['storeName'] as String;
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -205,7 +230,7 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
                     ),
                   ),
                   child: QrImageView(
-                    data: upcomingReservation.code,
+                    data: code,
                     version: QrVersions.auto,
                     size: 200,
                     backgroundColor: Colors.white,
@@ -213,7 +238,7 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  '${upcomingReservation.date} · ${upcomingReservation.time}',
+                  '$date · $time',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -221,7 +246,7 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  upcomingReservation.store,
+                  storeName,
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF777777),
@@ -236,7 +261,10 @@ class _StoreCheckinScreenState extends State<StoreCheckinScreen>
 
     // QR을 보여준 것으로 간주하고 동일한 체크인 흐름을 진행한다.
     if (mounted) {
-      _runCheckinSequence();
+      _runCheckinSequence(
+        storeId: reservation['storeId'] as String,
+        storeName: storeName,
+      );
     }
   }
 

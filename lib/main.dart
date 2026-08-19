@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'services/api_product_service.dart';
 import 'services/ar_session_provider.dart';
 import 'services/auth_provider.dart';
 import 'services/product_service.dart';
@@ -30,7 +31,7 @@ class ArFashionApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<ProductService>(create: (_) => MockProductService()),
+        Provider<ProductService>(create: (_) => ApiProductService()),
         ChangeNotifierProvider(create: (_) => WishlistProvider()),
         ChangeNotifierProvider(create: (_) => RecentlyViewedProvider()),
         ChangeNotifierProvider(create: (_) => ArSessionProvider()),
